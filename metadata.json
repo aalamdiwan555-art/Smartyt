@@ -1,0 +1,6 @@
+{
+  "name": "Dr. Clicker (Admin Pro)",
+  "description": "Premium 100% offline automation utility optimized for ridesharing app interactions with computer vision and ultra-fast custom physical gesture injection.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

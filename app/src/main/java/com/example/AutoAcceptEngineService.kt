@@ -50,6 +50,8 @@ class AutoAcceptEngineService : AccessibilityService() {
             return
         }
 
+        Log.d(TAG, "Event detected: ${AccessibilityEvent.eventTypeToString(event.eventType)} for $packageName")
+        
         val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
         val isEnabled = prefs.getBoolean("enabled", false)
         if (!isEnabled) {
@@ -118,6 +120,7 @@ class AutoAcceptEngineService : AccessibilityService() {
         }
 
         Log.d(TAG, "Scanned values -> Price: ₹$extractedPrice, Pickup: $extractedPickup km, Drop: $extractedDrop km")
+        Log.d(TAG, "Criteria check started.")
 
         // Read preferences
         val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
@@ -151,6 +154,8 @@ class AutoAcceptEngineService : AccessibilityService() {
         if (criteriaPassed) {
             Log.d(TAG, "Workflow match criteria satisfied! Procuring order accept click...")
             executeAcceptWorkflow()
+        } else {
+            Log.d(TAG, "Workflow match criteria NOT satisfied.")
         }
     }
 

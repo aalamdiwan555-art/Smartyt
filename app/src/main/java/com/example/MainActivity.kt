@@ -191,6 +191,19 @@ fun DashboardScreen(
     // State for checking accessibility helper
     var isServiceActive by remember { mutableStateOf(false) }
 
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                isServiceActive = checkAccessibilityServiceEnabled(context, AutoAcceptEngineService::class.java)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
     // Periodic check or onResume updates of Service status
     LaunchedEffect(Unit) {
         isServiceActive = checkAccessibilityServiceEnabled(context, AutoAcceptEngineService::class.java)
@@ -211,15 +224,19 @@ fun DashboardScreen(
     fun toggleEngine(targetValue: Boolean) {
         isEnabled = targetValue
         saveConfigs()
-        if (targetValue && isOverlayGranted) {
-            prefs.edit().putBoolean("overlay_active", true).apply()
-            isOverlayActive = true
-            val serviceIntent = Intent(context, FloatingOverlayService::class.java)
-            try {
-                context.startService(serviceIntent)
-            } catch (e: Exception) {
-                Log.e("MainActivity", "Error starting overlay: ${e.message}")
+        val serviceIntent = Intent(context, FloatingOverlayService::class.java)
+        if (targetValue) {
+            if (isOverlayGranted) {
+                try {
+                    context.startService(serviceIntent)
+                } catch (e: Exception) {
+                    Log.e("MainActivity", "Error starting overlay: ${e.message}")
+                }
+            } else {
+                Toast.makeText(context, "Overlay permission required to display control panel.", Toast.LENGTH_SHORT).show()
             }
+        } else {
+            context.stopService(serviceIntent)
         }
     }
 
@@ -470,91 +487,6 @@ fun DashboardScreen(
                                 Text("GRANT SYSTEM OVERLAY ACCESS", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                             }
                         }
-                    }
-                }
-            }
-
-            // FLOATING PANEL CONTROLLER SWITCH
-            if (isOverlayGranted) {
-
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            isOverlayActive = !isOverlayActive
-                            prefs.edit().putBoolean("overlay_active", isOverlayActive).apply()
-                            val serviceIntent = Intent(context, FloatingOverlayService::class.java)
-                            if (isOverlayActive) {
-                                try {
-                                    context.startService(serviceIntent)
-                                } catch (e: Exception) {
-                                    Log.e("MainActivity", "Error starting overlay: ${e.message}")
-                                }
-                            } else {
-                                context.stopService(serviceIntent)
-                            }
-                        },
-                    shape = RoundedCornerShape(18.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (isOverlayActive) Color(0xFF1E1430) else obsidianCardSurface
-                    ),
-                    border = BoxBorder(
-                        1.dp,
-                        if (isOverlayActive) Color(0xFF9C27B0) else sleekBorderColor
-                    )
-                ) {
-                    Row(
-                        modifier = Modifier.padding(20.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(14.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Info,
-                                contentDescription = "Overlay icon",
-                                tint = if (isOverlayActive) Color(0xFFE040FB) else Color.Gray,
-                                modifier = Modifier.size(32.dp)
-                            )
-                            Column {
-                                Text(
-                                    text = "Floating Control Panel",
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 16.sp
-                                )
-                                Text(
-                                    text = if (isOverlayActive) "Overlay widget is active on screen" else "Overlay widget is hidden",
-                                    color = if (isOverlayActive) Color(0xFFE1BEE7) else Color.Gray,
-                                    fontSize = 13.sp
-                                )
-                            }
-                        }
-                        Switch(
-                            checked = isOverlayActive,
-                            onCheckedChange = { value ->
-                                isOverlayActive = value
-                                prefs.edit().putBoolean("overlay_active", isOverlayActive).apply()
-                                val serviceIntent = Intent(context, FloatingOverlayService::class.java)
-                                if (isOverlayActive) {
-                                    try {
-                                        context.startService(serviceIntent)
-                                    } catch (e: Exception) {
-                                        Log.e("MainActivity", "Error starting overlay: ${e.message}")
-                                    }
-                                } else {
-                                    context.stopService(serviceIntent)
-                                }
-                            },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = Color.White,
-                                checkedTrackColor = Color(0xFF9C27B0),
-                                uncheckedThumbColor = Color.Gray,
-                                uncheckedTrackColor = Color(0xFF2C3044)
-                            )
-                        )
                     }
                 }
             }

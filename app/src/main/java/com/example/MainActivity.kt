@@ -168,9 +168,9 @@ fun DashboardScreen(
     var isEnabled by remember { mutableStateOf(prefs.getBoolean("enabled", false)) }
     var isOverlayActive by remember { mutableStateOf(prefs.getBoolean("overlay_active", false)) }
     var minPrice by remember { mutableStateOf(prefs.getInt("min_price", 0).let { if (it == 0) "" else it.toString() }) }
-    var maxPrice by remember { mutableStateOf(prefs.getInt("max_price", 9999).let { if (it == 9999) "" else it.toString() }) }
+    var maxPrice by remember { mutableStateOf(prefs.getInt("max_price", 99999).let { if (it == 99999) "" else it.toString() }) }
     var minPickup by remember { mutableStateOf(prefs.getFloat("min_pickup", 0.0f).let { if (it == 0.0f) "" else it.toString() }) }
-    var maxDrop by remember { mutableStateOf(prefs.getFloat("max_drop", 15.0f).let { if (it == 15.0f) "" else it.toString() }) }
+    var maxDrop by remember { mutableStateOf(prefs.getFloat("max_drop", 999.0f).let { if (it == 999.0f) "" else it.toString() }) }
     var cvMatchEnabled by remember { mutableStateOf(prefs.getBoolean("template_match_enabled", true)) }
     var templatePathState by remember { mutableStateOf(prefs.getString("template_path", "") ?: "") }
 
@@ -214,9 +214,9 @@ fun DashboardScreen(
         val editor = prefs.edit()
         editor.putBoolean("enabled", isEnabled)
         editor.putInt("min_price", minPrice.toIntOrNull() ?: 0)
-        editor.putInt("max_price", maxPrice.toIntOrNull() ?: 9999)
+        editor.putInt("max_price", maxPrice.toIntOrNull() ?: 99999)
         editor.putFloat("min_pickup", minPickup.toFloatOrNull() ?: 0.0f)
-        editor.putFloat("max_drop", maxDrop.toFloatOrNull() ?: 15.0f)
+        editor.putFloat("max_drop", maxDrop.toFloatOrNull() ?: 999.0f)
         editor.putBoolean("template_match_enabled", cvMatchEnabled)
         editor.apply()
     }

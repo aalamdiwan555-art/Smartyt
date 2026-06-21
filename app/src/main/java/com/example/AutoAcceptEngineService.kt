@@ -28,6 +28,8 @@ class AutoAcceptEngineService : AccessibilityService() {
     private val executor = Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
     private var isScanning = false
+    private var pendingScanRunnable: Runnable? = null
+    private var lastScanTime = 0L
 
     companion object {
         private const val TAG = "DrClickerService"
@@ -45,12 +47,27 @@ class AutoAcceptEngineService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
-        val packageName = event.packageName?.toString() ?: ""
-        if (packageName != "com.rapido.rider") {
+        val eventPackageName = event.packageName?.toString() ?: ""
+        val activePackageName = rootInActiveWindow?.packageName?.toString() ?: ""
+        
+        // Log all raw accessibility events for complete diagnostic visibility
+        Log.v(TAG, "Raw accessibility event: type=${AccessibilityEvent.eventTypeToString(event.eventType)}, eventPkg=$eventPackageName, activePkg=$activePackageName")
+
+        // Support any target package containing "rapido", "rider", "driver", or "partner" to handle regional or driver variants dynamically
+        val isTargetApp = eventPackageName.contains("rapido", ignoreCase = true) || 
+                          activePackageName.contains("rapido", ignoreCase = true) ||
+                          eventPackageName.contains("rider", ignoreCase = true) ||
+                          activePackageName.contains("rider", ignoreCase = true) ||
+                          eventPackageName.contains("driver", ignoreCase = true) ||
+                          activePackageName.contains("driver", ignoreCase = true) ||
+                          eventPackageName.contains("partner", ignoreCase = true) ||
+                          activePackageName.contains("partner", ignoreCase = true)
+
+        if (!isTargetApp) {
             return
         }
 
-        Log.d(TAG, "Event detected: ${AccessibilityEvent.eventTypeToString(event.eventType)} for $packageName")
+        Log.d(TAG, "Target ride app event detected: type=${AccessibilityEvent.eventTypeToString(event.eventType)} pkg=$eventPackageName")
         
         val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
         val isEnabled = prefs.getBoolean("enabled", false)
@@ -58,30 +75,49 @@ class AutoAcceptEngineService : AccessibilityService() {
             return
         }
 
-        // Limit the frequency of scans to avoid high CPU usage
+        val currentTime = System.currentTimeMillis()
+        
+        // Non-blocking time throttle to prevent task starvation/stagnation under high update frequencies (e.g., spinning radar or mapping updates)
+        if (currentTime - lastScanTime < 120) {
+            // Schedule a final backup scan in the near future to ensure the absolute last UI frame update is fully scanned
+            pendingScanRunnable?.let { mainHandler.removeCallbacks(it) }
+            val scanTask = Runnable {
+                doScan(event.source)
+            }
+            pendingScanRunnable = scanTask
+            mainHandler.postDelayed(scanTask, 120 - (currentTime - lastScanTime))
+            return
+        }
+
+        // 120ms or more has passed: process immediately for maximum feedback speed
+        pendingScanRunnable?.let { mainHandler.removeCallbacks(it) }
+        doScan(event.source)
+    }
+
+    private fun doScan(source: AccessibilityNodeInfo?) {
+        lastScanTime = System.currentTimeMillis()
         if (isScanning) return
         isScanning = true
-
-        mainHandler.postDelayed({
-            try {
-                parseFiltersAndMaybeAccept()
-            } catch (e: Exception) {
-                Log.e(TAG, "Error parsing fields: ${e.message}")
-            } finally {
-                isScanning = false
-            }
-        }, 100) // 100ms throttle
+        try {
+            parseFiltersAndMaybeAccept(source)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in doScan routine: ${e.message}")
+        } finally {
+            isScanning = false
+        }
     }
 
     override fun onInterrupt() {
         Log.d(TAG, "Service onInterrupt")
     }
 
-    private fun parseFiltersAndMaybeAccept() {
-        val rootNode = rootInActiveWindow ?: return
+    private fun parseFiltersAndMaybeAccept(eventSource: AccessibilityNodeInfo?) {
+        val rootNode = rootInActiveWindow ?: eventSource ?: return
         
         val nodeTexts = mutableListOf<String>()
         collectTexts(rootNode, nodeTexts)
+
+        Log.d(TAG, "Scanned page nodes count: ${nodeTexts.size}. Node texts: $nodeTexts")
 
         var extractedPrice: Int? = null
         var extractedPickup: Float? = null
@@ -90,13 +126,18 @@ class AutoAcceptEngineService : AccessibilityService() {
         for (text in nodeTexts) {
             val cleanText = text.lowercase().trim()
 
-            // Parse Price numbers (e.g. ₹150, Rs. 150, 150 Rs)
-            if (cleanText.contains("₹")) {
-                val priceNum = extractNumber(cleanText, "₹")
-                if (priceNum != null) extractedPrice = priceNum
-            } else if (cleanText.contains("rs")) {
-                val priceNum = extractNumber(cleanText, "rs")
-                if (priceNum != null) extractedPrice = priceNum
+            // Parse Price numbers (e.g. ₹150, Rs. 150, 150 Rs, Fare: 150, Price 150)
+            if (cleanText.contains("₹") || cleanText.contains("rs") || cleanText.contains("fare") || cleanText.contains("price") || cleanText.contains("amt") || cleanText.contains("amount")) {
+                val priceNum = extractNumber(cleanText, "₹") 
+                    ?: extractNumber(cleanText, "rs") 
+                    ?: extractNumber(cleanText, "fare") 
+                    ?: extractNumber(cleanText, "price") 
+                    ?: extractNumber(cleanText, "amt")
+                    ?: extractNumber(cleanText, "amount")
+                    ?: extractDigitFallback(cleanText)
+                if (priceNum != null) {
+                    extractedPrice = priceNum
+                }
             }
 
             // Parse distance (e.g. "Pickup: 1.2 km", "Drop: 8.5 km", "1.2 km away")
@@ -284,12 +325,16 @@ class AutoAcceptEngineService : AccessibilityService() {
 
         val text = node.text?.toString()?.lowercase() ?: ""
         val desc = node.contentDescription?.toString()?.lowercase() ?: ""
+        val viewId = node.viewIdResourceName?.lowercase() ?: ""
 
-        val isTarget = text.contains("accept") || desc.contains("accept") || 
-                       text.contains("book") || desc.contains("book") ||
-                       text.contains("confirm") || desc.contains("confirm")
+        val isTarget = text.contains("accept") || desc.contains("accept") || viewId.contains("accept") ||
+                       text.contains("book") || desc.contains("book") || viewId.contains("book") ||
+                       text.contains("confirm") || desc.contains("confirm") || viewId.contains("confirm") ||
+                       text.contains("swipe") || desc.contains("swipe") || viewId.contains("swipe")
 
         if (isTarget) {
+            Log.d(TAG, "Found target accept element! text='$text', desc='$desc', id='$viewId'")
+            // Try 1: Find a clickable parent/ancestor
             var current: AccessibilityNodeInfo? = node
             while (current != null) {
                 if (current.isClickable) {
@@ -297,17 +342,31 @@ class AutoAcceptEngineService : AccessibilityService() {
                     val delay = (10..100).random().toLong()
                     mainHandler.postDelayed({
                         targetNode.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                        Log.d(TAG, "Fast fallback text-click accept triggered on clickable node with class ${targetNode.className}")
+                        Log.d(TAG, "Fast fallback text/id ACTION_CLICK accept triggered on clickable node: $viewId")
                         triggerDoubleBeep()
                     }, delay)
                     return true
                 }
                 current = current.parent
             }
+
+            // Try 2: Click using physical coordinates if no ancestor is marked isClickable
+            val rect = android.graphics.Rect()
+            node.getBoundsInScreen(rect)
+            if (rect.width() > 0 && rect.height() > 0) {
+                val x = rect.centerX().toFloat()
+                val y = rect.centerY().toFloat()
+                injectTapGesture(x, y)
+                Log.d(TAG, "Fast fallback coordinate CLICK accept triggered on nodes bounds: ($x, $y)")
+                return true
+            }
         }
 
         for (i in 0 until node.childCount) {
-            if (clickAcceptNode(node.getChild(i))) return true
+            val child = node.getChild(i)
+            if (child != null) {
+                if (clickAcceptNode(child)) return true
+            }
         }
         return false
     }
@@ -343,28 +402,65 @@ class AutoAcceptEngineService : AccessibilityService() {
         }
     }
 
-    // Heuristics for parsing amounts with rupee symbols
+    // Heuristics for parsing amounts with prefix or suffix symbols
     private fun extractNumber(text: String, prefix: String): Int? {
         try {
             val index = text.indexOf(prefix)
             if (index == -1) return null
-            val searchArea = text.substring(index + prefix.length)
-            val sb = StringBuilder()
+
+            // Try extracting digits after the prefix
+            val afterPart = text.substring(index + prefix.length)
+            val digitsAfter = StringBuilder()
             var digitCaptured = false
-            for (c in searchArea) {
+            for (c in afterPart) {
                 if (c.isDigit()) {
-                    sb.append(c)
+                    digitsAfter.append(c)
                     digitCaptured = true
                 } else if (digitCaptured) {
                     break
-                } else if (!c.isWhitespace()) {
+                } else if (!c.isWhitespace() && c != '.' && c != ':') {
                     break
                 }
             }
-            return if (sb.isNotEmpty()) sb.toString().toIntOrNull() else null
+            if (digitsAfter.isNotEmpty()) {
+                val parsed = digitsAfter.toString().toIntOrNull()
+                if (parsed != null) return parsed
+            }
+
+            // Try extracting digits before the prefix
+            val beforePart = text.substring(0, index)
+            val digitsBefore = StringBuilder()
+            var digitCapturedBefore = false
+            for (i in beforePart.length - 1 downTo 0) {
+                val c = beforePart[i]
+                if (c.isDigit()) {
+                    digitsBefore.append(c)
+                    digitCapturedBefore = true
+                } else if (digitCapturedBefore) {
+                    break
+                } else if (!c.isWhitespace() && c != '.' && c != ':') {
+                    break
+                }
+            }
+            if (digitsBefore.isNotEmpty()) {
+                return digitsBefore.reverse().toString().toIntOrNull()
+            }
         } catch (e: Exception) {
-            return null
+            // ignore
         }
+        return null
+    }
+
+    private fun extractDigitFallback(text: String): Int? {
+        try {
+            val digitsOnly = text.filter { it.isDigit() }
+            if (digitsOnly.isNotEmpty()) {
+                return digitsOnly.toIntOrNull()
+            }
+        } catch (e: Exception) {
+            // ignore
+        }
+        return null
     }
 
     // Heuristics for parsing km floats (e.g., "pickup: 1.5 km", "drop 8.4 km")
@@ -373,7 +469,7 @@ class AutoAcceptEngineService : AccessibilityService() {
             val index = text.indexOf("km")
             if (index == -1) return null
 
-            // Walk back from "km" to extract float substring
+            // Try walking back from "km" (digits before "km", e.g., "1.5 km", "1.5km")
             val sb = StringBuilder()
             var startCapturing = false
             for (i in (index - 1) downTo 0) {
@@ -388,10 +484,29 @@ class AutoAcceptEngineService : AccessibilityService() {
             }
             if (sb.isNotEmpty()) {
                 val candidate = sb.reverse().toString().trim()
-                return candidate.toFloatOrNull()
+                val parsed = candidate.toFloatOrNull()
+                if (parsed != null) return parsed
+            }
+
+            // Try searching after (e.g. "km: 1.5")
+            val after = text.substring(index + 2)
+            val sbAfter = StringBuilder()
+            var startCapturingAfter = false
+            for (c in after) {
+                if (c.isDigit() || c == '.') {
+                    sbAfter.append(c)
+                    startCapturingAfter = true
+                } else if (startCapturingAfter) {
+                    break
+                } else if (!c.isWhitespace() && c != ':' && c != '-') {
+                    break
+                }
+            }
+            if (sbAfter.isNotEmpty()) {
+                return sbAfter.toString().toFloatOrNull()
             }
         } catch (e: Exception) {
-            // fallback
+            // ignore
         }
         return null
     }

@@ -271,6 +271,14 @@ fun DashboardScreen(
         }
     }
 
+    // Interactive In-App Dispatch Simulation States
+    var simulatedPrice by remember { mutableStateOf("180") }
+    var simulatedPickup by remember { mutableStateOf("1.5") }
+    var simulatedDrop by remember { mutableStateOf("6.2") }
+    var isSimulatingRequest by remember { mutableStateOf(false) }
+    var simulationSuccess by remember { mutableStateOf(false) }
+    var simulationMessage by remember { mutableStateOf("") }
+
     // Deep Obsidian Luxury Accent styling
     val obsidianBackground = Color(0xFF0C0E14)
     val obsidianCardSurface = Color(0xFF161925)
@@ -852,6 +860,255 @@ fun DashboardScreen(
                             fontSize = 11.sp,
                             lineHeight = 16.sp
                         )
+                    }
+                }
+            }
+
+            // SECTION 3: IN-APP RIDE DISPATCH SIMULATOR
+            Text(
+                text = "IN-APP DISPATCH SIMULATOR",
+                color = Color.Gray,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.5.sp
+            )
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = obsidianCardSurface),
+                border = BoxBorder(1.dp, if (isSimulatingRequest) neonGold else sleekBorderColor)
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Text(
+                        text = "Verify Clicker Logic Instantly",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp
+                    )
+                    Text(
+                        text = "Configure mock ride values below, then deploy. If they satisfy your filter limits and Accessibility is active, Dr. Clicker will automatically parse, match, and click 'ACCEPT RIDE' immediately!",
+                        color = Color.LightGray,
+                        fontSize = 12.sp,
+                        lineHeight = 17.sp
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = simulatedPrice,
+                            onValueChange = { simulatedPrice = it },
+                            label = { Text("Mock Fare", fontSize = 11.sp) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = neonGold,
+                                unfocusedBorderColor = sleekBorderColor,
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White
+                            ),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        OutlinedTextField(
+                            value = simulatedPickup,
+                            onValueChange = { simulatedPickup = it },
+                            label = { Text("Mock Pickup", fontSize = 11.sp) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = neonGold,
+                                unfocusedBorderColor = sleekBorderColor,
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White
+                            ),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        OutlinedTextField(
+                            value = simulatedDrop,
+                            onValueChange = { simulatedDrop = it },
+                            label = { Text("Mock Drop", fontSize = 11.sp) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = neonGold,
+                                unfocusedBorderColor = sleekBorderColor,
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White
+                            ),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    if (!isServiceActive) {
+                        Surface(
+                            color = Color(0xFF3E1F1F),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "⚠️ Notice: Enable 'Accessibility Service' first to test automatic clicks.",
+                                color = Color(0xFFFFCDD2),
+                                fontSize = 12.sp,
+                                modifier = Modifier.padding(10.dp),
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Button(
+                            onClick = {
+                                if (!isServiceActive) {
+                                    Toast.makeText(context, "Please enable Accessibility Service first!", Toast.LENGTH_LONG).show()
+                                    return@Button
+                                }
+                                if (!isEnabled) {
+                                    Toast.makeText(context, "Please switch 'Engine Activation' to ON first!", Toast.LENGTH_LONG).show()
+                                    return@Button
+                                }
+                                simulationSuccess = false
+                                simulationMessage = ""
+                                isSimulatingRequest = true
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = if (isSimulatingRequest) Color(0xFF1B5E20) else neonGold),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.weight(1.3f)
+                        ) {
+                            Text(
+                                text = if (isSimulatingRequest) "DISPATCH PENDING..." else "DEPLOY SIMULATION",
+                                color = Color.Black,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp
+                            )
+                        }
+
+                        if (isSimulatingRequest || simulationSuccess) {
+                            OutlinedButton(
+                                onClick = {
+                                    isSimulatingRequest = false
+                                    simulationSuccess = false
+                                    simulationMessage = ""
+                                },
+                                shape = RoundedCornerShape(10.dp),
+                                border = BorderStroke(1.dp, Color.Gray),
+                                modifier = Modifier.weight(0.7f)
+                            ) {
+                                Text("RESET", color = Color.White, fontSize = 12.sp)
+                            }
+                        }
+                    }
+
+                    // Simulated Booking Popup Box
+                    AnimatedVisibility(visible = isSimulatingRequest && !simulationSuccess) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(Color(0xFF222430))
+                                .border(2.dp, neonGold, RoundedCornerShape(14.dp))
+                                .padding(16.dp)
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(12.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(8.dp)
+                                                .clip(RoundedCornerShape(4.dp))
+                                                .background(Color.Red)
+                                        )
+                                        Text("LIVE PASSENGER REQUEST", color = Color.Red, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                    Text("Expires in 15s", color = Color.Gray, fontSize = 11.sp)
+                                }
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceAround,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text("FARE AMOUNT", color = Color.Gray, fontSize = 9.sp)
+                                        Text("₹ $simulatedPrice", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text("PICKUP DIST", color = Color.Gray, fontSize = 9.sp)
+                                        Text("$simulatedPickup km", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                                    }
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text("DROP DIST", color = Color.Gray, fontSize = 9.sp)
+                                        Text("$simulatedDrop km", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                                    }
+                                }
+
+                                Button(
+                                    onClick = {
+                                        simulationSuccess = true
+                                        isSimulatingRequest = false
+                                        simulationMessage = "Manual Click Accepted!"
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFEC107)), // Matches OpenCV default amber!
+                                    shape = RoundedCornerShape(30.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(48.dp)
+                                ) {
+                                    Text("ACCEPT RIDE", color = Color(0xFF211400), fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                }
+                            }
+                        }
+                    }
+
+                    // Simulation Success Box
+                    AnimatedVisibility(visible = simulationSuccess) {
+                        Surface(
+                            color = Color(0xFF1B5E20),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.CheckCircle,
+                                    contentDescription = "Success",
+                                    tint = Color(0xFF81C784),
+                                    modifier = Modifier.size(36.dp)
+                                )
+                                Text(
+                                    text = "RIDE AUTOMATICALLY CAPTURED! 🎉",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp
+                                )
+                                Text(
+                                    text = "Analyzed criteria and automatically injected acceptance click at high speed.",
+                                    color = Color(0xFFA5D6A7),
+                                    fontSize = 12.sp,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
                     }
                 }
             }

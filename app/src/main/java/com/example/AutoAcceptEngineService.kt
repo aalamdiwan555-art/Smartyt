@@ -53,7 +53,7 @@ class AutoAcceptEngineService : AccessibilityService() {
         // Log all raw accessibility events for complete diagnostic visibility
         Log.v(TAG, "Raw accessibility event: type=${AccessibilityEvent.eventTypeToString(event.eventType)}, eventPkg=$eventPackageName, activePkg=$activePackageName")
 
-        // Support any target package containing "rapido", "rider", "driver", or "partner" to handle regional or driver variants dynamically
+        // Support any target package containing "rapido", "rider", "driver", or "partner" to handle regional or driver variants dynamically; also support our simulator package name
         val isTargetApp = eventPackageName.contains("rapido", ignoreCase = true) || 
                           activePackageName.contains("rapido", ignoreCase = true) ||
                           eventPackageName.contains("rider", ignoreCase = true) ||
@@ -61,7 +61,13 @@ class AutoAcceptEngineService : AccessibilityService() {
                           eventPackageName.contains("driver", ignoreCase = true) ||
                           activePackageName.contains("driver", ignoreCase = true) ||
                           eventPackageName.contains("partner", ignoreCase = true) ||
-                          activePackageName.contains("partner", ignoreCase = true)
+                          activePackageName.contains("partner", ignoreCase = true) ||
+                          eventPackageName.contains("example", ignoreCase = true) ||
+                          activePackageName.contains("example", ignoreCase = true) ||
+                          eventPackageName.contains("aistudio", ignoreCase = true) ||
+                          activePackageName.contains("aistudio", ignoreCase = true) ||
+                          eventPackageName.contains(packageName, ignoreCase = true) ||
+                          activePackageName.contains(packageName, ignoreCase = true)
 
         if (!isTargetApp) {
             return

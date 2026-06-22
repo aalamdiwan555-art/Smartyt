@@ -303,26 +303,33 @@ class AutoAcceptEngineService : AccessibilityService() {
     }
 
     private fun injectTapGesture(x: Float, y: Float) {
-        val path = Path().apply { moveTo(x, y) }
-        val stroke = GestureDescription.StrokeDescription(path, 0, 40)
+        // Accurate Path & Stroke Construction
+        val path = Path().apply {
+            moveTo(x, y)
+            lineTo(x + 1f, y + 1f)
+        }
+        val tapTimeout = android.view.ViewConfiguration.getTapTimeout().toLong()
+        val stroke = GestureDescription.StrokeDescription(path, 0, tapTimeout)
         val gesture = GestureDescription.Builder().addStroke(stroke).build()
 
         // Randomized reflex delay restricted tightly and unpredictably between 10 milliseconds and 100 milliseconds
         val humanizedDelay = kotlin.random.Random.nextLong(10, 100)
 
         mainHandler.postDelayed({
-            dispatchGesture(gesture, object : GestureResultCallback() {
+            Log.d(TAG, "Attempting tap gesture at (x=$x, y=$y) after ${humanizedDelay}ms delay")
+            val wasDispatched = dispatchGesture(gesture, object : GestureResultCallback() {
                 override fun onCompleted(gestureDescription: GestureDescription) {
                     super.onCompleted(gestureDescription)
-                    Log.d(TAG, "Autoclick injection executed at coordinates ($x, $y) with a reflex delay of ${humanizedDelay}ms")
+                    Log.d(TAG, "Gesture completed successfully at ($x, $y)")
                     triggerDoubleBeep()
                 }
 
                 override fun onCancelled(gestureDescription: GestureDescription) {
                     super.onCancelled(gestureDescription)
-                    Log.e(TAG, "Autoclick touch gesture cancelled")
+                    Log.e(TAG, "Gesture cancelled at ($x, $y)")
                 }
-            }, mainHandler) // Separate high-priority UI thread callback
+            }, mainHandler)
+            Log.d(TAG, "dispatchGesture() returned: $wasDispatched")
         }, humanizedDelay)
     }
 

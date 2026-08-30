@@ -40,7 +40,7 @@ export default function VideosPage() {
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string): "default" | "secondary" | "outline" | "destructive" => {
     switch (status) {
       case "published":
         return "default";
@@ -48,6 +48,8 @@ export default function VideosPage() {
         return "secondary";
       case "ready":
         return "outline";
+      case "failed":
+        return "destructive";
       default:
         return "secondary";
     }
@@ -104,7 +106,7 @@ export default function VideosPage() {
                       Updated {new Date(draft.updatedAt).toLocaleDateString()}
                     </p>
                   </div>
-                  <Badge variant={getStatusColor(draft.status) as any}>
+                   <Badge variant={getStatusColor(draft.status)}>
                     {draft.status}
                   </Badge>
                 </div>

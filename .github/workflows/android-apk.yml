@@ -17,19 +17,24 @@ permissions:
 jobs:
   build-apk:
     runs-on: ubuntu-latest
-    env:
-      CAPACITOR_APP_URL: ${{ inputs.app_url || vars.SMARTYT_APP_URL }}
-
+    
     steps:
       - name: Check out source
         uses: actions/checkout@v4
 
-      - name: Validate app URL
+      - name: Resolve App URL
+        id: app_url
         run: |
-          if [[ -z "$CAPACITOR_APP_URL" || "$CAPACITOR_APP_URL" != https://* ]]; then
-            echo "Provide an HTTPS app URL as the workflow input or SMARTYT_APP_URL repository variable."
+          URL="${{ inputs.app_url }}"
+          if [ -z "$URL" ]; then
+            URL="${{ vars.SMARTYT_APP_URL }}"
+          fi
+          if [[ -z "$URL" || "$URL" != https://* ]]; then
+            echo "❌ Provide HTTPS URL via workflow input or SMARTYT_APP_URL variable"
             exit 1
           fi
+          echo "url=$URL" >> $GITHUB_OUTPUT
+          echo "Building for $URL"
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -42,7 +47,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: pnpm
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
@@ -52,10 +56,38 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Generate Android project
+      - name: Build web app
+        run: pnpm build
+        env:
+          NEXT_PUBLIC_APP_URL: ${{ steps.app_url.outputs.url }}
+
+      - name: Configure Capacitor
         run: |
-          pnpm exec cap add android
+          cat > capacitor.config.ts <<EOF
+          import { CapacitorConfig } from '@capacitor/cli';
+          const config: CapacitorConfig = {
+            appId: 'com.smartyt.app',
+            appName: 'Smartyt',
+            webDir: 'out',
+            server: {
+              url: '${{ steps.app_url.outputs.url }}',
+              cleartext: false,
+              androidScheme: 'https'
+            }
+          };
+          export default config;
+          EOF
+          cat capacitor.config.ts
+
+      - name: Generate Android project (idempotent)
+        run: |
+          if [ ! -d "android" ]; then
+            pnpm exec cap add android
+          else
+            echo "android folder exists, skipping add"
+          fi
           pnpm exec cap sync android
+          pnpm exec cap copy android
 
       - name: Build debug APK
         working-directory: android

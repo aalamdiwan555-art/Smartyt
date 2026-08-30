@@ -1,5 +1,6 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import { Slot } from "@radix-ui/react-slot";
 
 type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: "default" | "outline" | "ghost" | "secondary" | "destructive";
@@ -22,10 +23,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       size === "icon" && "h-10 w-10",
       className
     );
-    if (asChild) {
-      const child = React.Children.only(children) as React.ReactElement<{ className?: string }>;
-      return React.cloneElement(child, { className: cn(classes, child.props.className) });
-    }
+    if (asChild) return <Slot ref={ref} className={classes} {...props}>{children}</Slot>;
     return <button
       ref={ref}
       className={classes}

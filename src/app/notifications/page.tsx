@@ -40,14 +40,14 @@ export default function NotificationsPage() {
 
   const markAsRead = async (id: string) => {
     try {
-      await fetch("/api/notifications", {
+      const response = await fetch("/api/notifications", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ notificationId: id }),
       });
-      setNotifications(
-        notifications.map((n) => (n.id === id ? { ...n, read: true } : n))
-      );
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.error?.message || "Failed to mark as read");
+      setNotifications((current) => current.map((n) => (n.id === id ? { ...n, read: true } : n)));
     } catch (error) {
       toast.error("Failed to mark as read");
     }
@@ -91,7 +91,7 @@ export default function NotificationsPage() {
                   </div>
                 </div>
                 {!notification.read && (
-                  <Button variant="ghost" size="sm" onClick={() => markAsRead(notification.id)}>
+                   <Button aria-label="Mark notification as read" variant="ghost" size="sm" onClick={() => markAsRead(notification.id)}>
                     <Check className="h-4 w-4" />
                   </Button>
                 )}

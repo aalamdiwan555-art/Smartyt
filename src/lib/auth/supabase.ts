@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
+import { UnauthorizedError } from '@/lib/api/errors';
 
 function requireEnv(name: string) {
   const value = process.env[name];
@@ -21,7 +22,11 @@ export function getSupabaseServerClient() {
         getAll() {
           return cookieStore.getAll();
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet: Array<{
+          name: string;
+          value: string;
+          options: Parameters<typeof cookieStore.set>[2];
+        }>) {
           try {
             cookiesToSet.forEach(({ name, value, options }) => {
               cookieStore.set(name, value, options);
@@ -64,8 +69,6 @@ export async function getUser() {
 
 export async function requireAuth() {
   const user = await getUser();
-  if (!user) {
-    throw new Error('Unauthorized');
-  }
+  if (!user) throw new UnauthorizedError();
   return user;
 }

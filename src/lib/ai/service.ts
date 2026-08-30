@@ -1,9 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY!,
-});
-
 const SYSTEM_PROMPTS: Record<string, string> = {
   idea: `You are Smartyt AI, an expert YouTube content strategist. Generate creative, engaging video ideas based on the creator's Content DNA. 
 Return a JSON object with: { titleConcept, contentAngle, hook, targetAudience, suggestedKeywords: string[], thumbnailConcept }`,
@@ -30,8 +26,16 @@ Return a JSON object with: { concept, textSuggestions: string[], layout, visualH
 Return a JSON object with: { hooks: string[], types: string[] }`,
 };
 
-export async function generateWithAI(type: string, input: Record<string, any>, contentDNA?: Record<string, any>) {
-  const systemPrompt = SYSTEM_PROMPTS[type] || SYSTEM_PROMPTS.idea;
+type GenerationType = keyof typeof SYSTEM_PROMPTS;
+
+function getAnthropicClient() {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) throw new Error('ANTHROPIC_API_KEY is not configured');
+  return new Anthropic({ apiKey });
+}
+
+export async function generateWithAI(type: GenerationType, input: Record<string, unknown>, contentDNA?: Record<string, unknown>) {
+  const systemPrompt = SYSTEM_PROMPTS[type];
 
   const userPrompt = `Content DNA: ${JSON.stringify(contentDNA || {})}
 
@@ -40,7 +44,7 @@ Input: ${JSON.stringify(input)}
 Generate the requested content. Return ONLY valid JSON.`;
 
   try {
-    const response = await anthropic.messages.create({
+    const response = await getAnthropicClient().messages.create({
       model: 'claude-3-sonnet-20240229',
       max_tokens: 2000,
       system: systemPrompt,
@@ -50,10 +54,9 @@ Generate the requested content. Return ONLY valid JSON.`;
     const content = response.content[0].type === 'text' ? response.content[0].text : '';
 
     // Extract JSON from response
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      return JSON.parse(jsonMatch[0]);
-    }
+    const fenced = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/i)?.[1];
+    const jsonText = fenced || content.slice(content.indexOf('{'), content.lastIndexOf('}') + 1);
+    if (jsonText.startsWith('{') && jsonText.endsWith('}')) return JSON.parse(jsonText);
 
     return { raw: content };
   } catch (error) {
@@ -62,15 +65,15 @@ Generate the requested content. Return ONLY valid JSON.`;
   }
 }
 
-export async function generateChatResponse(messages: { role: string; content: string }[], contentDNA?: Record<string, any>) {
+export async function generateChatResponse(messages: { role: 'user' | 'assistant'; content: string }[], contentDNA?: Record<string, unknown>) {
   const systemPrompt = `You are Smartyt AI, an expert YouTube creator assistant. Help creators with their content strategy, optimization, and growth. Be concise, actionable, and encouraging. Content DNA: ${JSON.stringify(contentDNA || {})}`;
 
   try {
-    const response = await anthropic.messages.create({
+    const response = await getAnthropicClient().messages.create({
       model: 'claude-3-sonnet-20240229',
       max_tokens: 1500,
       system: systemPrompt,
-      messages: messages.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })),
+      messages,
     });
 
     return response.content[0].type === 'text' ? response.content[0].text : '';

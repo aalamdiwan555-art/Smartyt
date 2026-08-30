@@ -1,16 +1,16 @@
 import { google } from 'googleapis';
-import { prisma } from '@/lib/db/prisma';
+import { createReadStream } from 'node:fs';
 
 const youtube = google.youtube({ version: 'v3' });
 
-export async function getYouTubeClient(accessToken: string) {
+export function getYouTubeClient(accessToken: string) {
   const auth = new google.auth.OAuth2();
   auth.setCredentials({ access_token: accessToken });
   return google.youtube({ version: 'v3', auth });
 }
 
 export async function getChannelInfo(accessToken: string) {
-  const client = await getYouTubeClient(accessToken);
+  const client = getYouTubeClient(accessToken);
   const response = await client.channels.list({
     part: ['snippet', 'statistics', 'contentDetails'],
     mine: true,
@@ -20,7 +20,7 @@ export async function getChannelInfo(accessToken: string) {
 }
 
 export async function getVideoAnalytics(accessToken: string, videoId: string) {
-  const client = await getYouTubeClient(accessToken);
+  const client = getYouTubeClient(accessToken);
   const response = await client.videos.list({
     part: ['statistics', 'snippet'],
     id: [videoId],
@@ -40,7 +40,10 @@ export async function uploadVideo(
     privacyStatus: string;
   }
 ) {
-  const client = await getYouTubeClient(accessToken);
+  const client = getYouTubeClient(accessToken);
+  if (!['private', 'unlisted', 'public'].includes(metadata.privacyStatus)) {
+    throw new Error('Invalid YouTube privacy status');
+  }
 
   // This is a simplified version - in production, you'd use resumable uploads
   const response = await client.videos.insert({
@@ -53,11 +56,11 @@ export async function uploadVideo(
         categoryId: metadata.categoryId,
       },
       status: {
-        privacyStatus: metadata.privacyStatus as any,
+          privacyStatus: metadata.privacyStatus as 'private' | 'unlisted' | 'public',
       },
     },
     media: {
-      body: require('fs').createReadStream(videoPath),
+      body: createReadStream(videoPath),
     },
   });
 

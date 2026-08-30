@@ -38,7 +38,7 @@ Smartyt is a comprehensive AI-powered platform for YouTube creators. It helps yo
 
 1. **Clone and install dependencies**:
    ```bash
-   npm install
+   pnpm install
    ```
 
 2. **Set up environment variables**:
@@ -49,13 +49,13 @@ Smartyt is a comprehensive AI-powered platform for YouTube creators. It helps yo
 
 3. **Set up the database**:
    ```bash
-   npx prisma generate
-   npx prisma migrate dev --name init
+   pnpm db:generate
+   pnpm db:migrate --name init
    ```
 
 4. **Run the development server**:
    ```bash
-   npm run dev
+   pnpm dev
    ```
 
 5. **Open** [http://localhost:3000](http://localhost:3000)
@@ -75,9 +75,23 @@ Smartyt is a comprehensive AI-powered platform for YouTube creators. It helps yo
 | `STRIPE_SECRET_KEY` | Stripe secret key |
 | `STRIPE_WEBHOOK_SECRET` | Stripe webhook secret |
 | `TOKEN_ENCRYPTION_KEY` | Encryption key for tokens |
+| `SESSION_SECRET` | Secret used to sign short-lived OAuth state |
 | `APP_BASE_URL` | Your app URL |
 
 ## Features
+
+## Android APK
+
+The repository includes a GitHub Actions workflow that wraps the deployed Smartyt
+web app in a Capacitor Android shell. Run **Actions → Build Android APK → Run
+workflow**, provide the deployed HTTPS app URL, and download the
+`smartyt-android-apk` artifact when the job finishes. You can also set the
+`SMARTYT_APP_URL` repository variable and run the workflow without entering the
+URL each time.
+
+Creating a release tag such as `v1.0.0` runs the same build and attaches the
+debug APK to that GitHub release. The APK loads the deployed URL, so the
+backend, authentication, and environment variables remain on the server.
 
 ### Core Workflow
 1. **IDEA** → AI-powered idea generation
@@ -142,13 +156,10 @@ See `prisma/schema.prisma` for the complete database schema including:
 
 ## Security
 
-- Row Level Security (RLS) on all tables
 - Server-side authentication
 - Encrypted OAuth tokens
 - Environment variables for secrets
-- Input validation
-- Rate limiting
-- CSRF protection
+- Input validation and quota enforcement on API routes
 
 ## License
 

@@ -19,6 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CAPACITOR_APP_URL: ${{ inputs.app_url || vars.SMARTYT_APP_URL }}
+
     steps:
       - name: Check out source
         uses: actions/checkout@v4

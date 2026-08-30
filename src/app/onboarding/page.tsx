@@ -29,12 +29,27 @@ export default function OnboardingPage() {
   function toggleGoal(goal: string) {
     setProfile((current) => ({ ...current, goals: current.goals.includes(goal) ? current.goals.filter((item) => item !== goal) : [...current.goals, goal] }));
   }
-  function next() {
+  async function next() {
     if (currentStep < steps.length - 1) setCurrentStep((step) => step + 1);
     else {
       setSaving(true);
-      toast.success("Your Smartyt workspace is ready.");
-      router.push("/dashboard");
+      try {
+        const response = await fetch("/api/profile", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(profile),
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) throw new Error(result.error?.message || "Could not save your profile");
+        toast.success("Your Smartyt workspace is ready.");
+        router.push("/dashboard");
+        router.refresh();
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Could not save your profile");
+      } finally {
+        setSaving(false);
+      }
     }
   }
 

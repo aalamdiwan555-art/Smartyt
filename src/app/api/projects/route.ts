@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/supabase';
 import { prisma } from '@/lib/db/prisma';
+import { handleApiError } from '@/lib/api/errors';
+import { projectInputSchema } from '@/lib/validation';
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,11 +19,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ success: true, data: { projects } });
   } catch (error) {
-    console.error('Projects error:', error);
-    return NextResponse.json(
-      { success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch projects' } },
-      { status: 500 }
-    );
+    return handleApiError(error, 'Failed to fetch projects');
   }
 }
 
@@ -29,8 +27,23 @@ export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth();
 
-    const body = await request.json();
-    const { name, channelId } = body;
+    const parsed = projectInputSchema.safeParse(await request.json());
+    if (!parsed.success) {
+      return NextResponse.json(
+        { success: false, error: { code: 'INVALID_INPUT', message: 'A valid project name is required' } },
+        { status: 400 },
+      );
+    }
+    const { name, channelId } = parsed.data;
+    if (channelId) {
+      const channel = await prisma.youTubeChannel.findFirst({ where: { id: channelId, userId: user.id } });
+      if (!channel) {
+        return NextResponse.json(
+          { success: false, error: { code: 'NOT_FOUND', message: 'Channel not found' } },
+          { status: 404 },
+        );
+      }
+    }
 
     const project = await prisma.project.create({
       data: {
@@ -42,10 +55,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, data: project });
   } catch (error) {
-    console.error('Project create error:', error);
-    return NextResponse.json(
-      { success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to create project' } },
-      { status: 500 }
-    );
+    return handleApiError(error, 'Failed to create project');
   }
 }

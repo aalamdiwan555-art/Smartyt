@@ -2,24 +2,26 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/supabase';
 import { prisma } from '@/lib/db/prisma';
 import { generateWithAI } from '@/lib/ai/service';
+import { handleApiError } from '@/lib/api/errors';
+import { toJsonSafe } from '@/lib/api/response';
+import { aiInputSchema } from '@/lib/validation';
 
 export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth();
 
-    const body = await request.json();
-    const { type, input, channelId } = body;
-
-    if (!type || !input) {
+    const parsed = aiInputSchema.safeParse(await request.json());
+    if (!parsed.success || JSON.stringify(parsed.data.input).length > 20000) {
       return NextResponse.json(
-        { success: false, error: { code: 'INVALID_INPUT', message: 'Type and input are required' } },
+        { success: false, error: { code: 'INVALID_INPUT', message: 'A valid generation type and bounded input are required' } },
         { status: 400 }
       );
     }
+    const { type, input } = parsed.data;
 
     // Check usage limits
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    today.setUTCHours(0, 0, 0, 0);
 
     const usage = await prisma.usage.upsert({
       where: {
@@ -37,7 +39,12 @@ export async function POST(request: NextRequest) {
 
     // Get subscription plan
     const subscription = await prisma.subscription.findFirst({
-      where: { userId: user.id },
+      where: {
+        userId: user.id,
+        status: 'active',
+        OR: [{ currentPeriodEnd: null }, { currentPeriodEnd: { gt: new Date() } }],
+      },
+      orderBy: { updatedAt: 'desc' },
     });
 
     const plan = subscription?.plan || 'free';
@@ -49,7 +56,12 @@ export async function POST(request: NextRequest) {
 
     const limit = limits[plan as keyof typeof limits]?.aiGenerations || 10;
 
-    if (usage.aiGenerationsUsed >= limit) {
+    const reservation = await prisma.usage.updateMany({
+      where: { id: usage.id, aiGenerationsUsed: { lt: limit } },
+      data: { aiGenerationsUsed: { increment: 1 } },
+    });
+
+    if (reservation.count === 0) {
       return NextResponse.json(
         { success: false, error: { code: 'USAGE_LIMIT_EXCEEDED', message: 'AI generation limit reached. Upgrade your plan.' } },
         { status: 429 }
@@ -64,27 +76,17 @@ export async function POST(request: NextRequest) {
     // Generate content
     const result = await generateWithAI(type, input, contentDNA || undefined);
 
-    // Increment usage
-    await prisma.usage.update({
-      where: { id: usage.id },
-      data: { aiGenerationsUsed: { increment: 1 } },
-    });
-
     // Log the generation
     await prisma.auditLog.create({
       data: {
         userId: user.id,
         action: 'ai_generate',
-        metadata: { type, input: JSON.stringify(input) },
+        metadata: { type, input: JSON.stringify(input).slice(0, 20000) },
       },
     });
 
-    return NextResponse.json({ success: true, data: result });
+    return NextResponse.json(toJsonSafe({ success: true, data: result }));
   } catch (error) {
-    console.error('AI generate error:', error);
-    return NextResponse.json(
-      { success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to generate content' } },
-      { status: 500 }
-    );
+    return handleApiError(error, 'Failed to generate content');
   }
 }

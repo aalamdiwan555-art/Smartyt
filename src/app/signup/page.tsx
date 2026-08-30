@@ -9,7 +9,7 @@ import toast from "react-hot-toast";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { supabaseBrowser } from "@/lib/auth/client";
+import { getSupabaseBrowserClient } from "@/lib/auth/client";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -18,7 +18,7 @@ export default function SignupPage() {
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault(); setLoading(true); setError("");
-    const { data, error: authError } = await supabaseBrowser.auth.signUp({ email, password, options: { data: { creatorName: name } } });
+    const { data, error: authError } = await getSupabaseBrowserClient().auth.signUp({ email, password, options: { data: { creatorName: name } } });
     if (authError) { setError(authError.message); setLoading(false); return; }
     if (!data.session) { toast.success("Check your inbox to confirm your email, then come back to sign in."); router.push("/login"); return; }
     toast.success("Your workspace is ready.");

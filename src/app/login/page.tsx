@@ -9,7 +9,7 @@ import toast from "react-hot-toast";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { supabaseBrowser } from "@/lib/auth/client";
+import { getSupabaseBrowserClient } from "@/lib/auth/client";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -21,7 +21,7 @@ export default function LoginPage() {
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true); setError("");
-    const { error: authError } = await supabaseBrowser.auth.signInWithPassword({ email, password });
+    const { error: authError } = await getSupabaseBrowserClient().auth.signInWithPassword({ email, password });
     if (authError) { setError(authError.message); setLoading(false); return; }
     toast.success("Welcome back.");
     router.push("/dashboard");

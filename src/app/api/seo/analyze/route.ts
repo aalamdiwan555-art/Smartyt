@@ -1,12 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/supabase';
+import { handleApiError } from '@/lib/api/errors';
+import { seoInputSchema } from '@/lib/validation';
 
 export async function POST(request: NextRequest) {
   try {
     await requireAuth();
 
-    const body = await request.json();
-    const { title, description, tags } = body;
+    const parsed = seoInputSchema.safeParse(await request.json());
+    if (!parsed.success) {
+      return NextResponse.json(
+        { success: false, error: { code: 'INVALID_INPUT', message: 'Invalid SEO details' } },
+        { status: 400 },
+      );
+    }
+    const { title, description, tags } = parsed.data;
 
     const scores = {
       title: calculateTitleScore(title),
@@ -28,11 +36,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('SEO analyze error:', error);
-    return NextResponse.json(
-      { success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to analyze SEO' } },
-      { status: 500 }
-    );
+    return handleApiError(error, 'Failed to analyze SEO');
   }
 }
 

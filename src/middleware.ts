@@ -8,9 +8,16 @@ export async function middleware(request: NextRequest) {
     },
   });
 
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.error('Supabase authentication is not configured');
+    return new NextResponse('Authentication service is not configured', { status: 503 });
+  }
+
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl,
+    supabaseAnonKey,
     {
       cookies: {
         get(name: string) {
@@ -57,7 +64,7 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
 
   // Protected routes
-  const protectedRoutes = ['/dashboard', '/create', '/ideas', '/seo', '/keywords', '/titles', '/descriptions', '/thumbnails', '/upload', '/calendar', '/videos', '/analytics', '/channel', '/research', '/ai-studio', '/tools', '/settings'];
+  const protectedRoutes = ['/dashboard', '/onboarding', '/create', '/ideas', '/seo', '/keywords', '/titles', '/descriptions', '/thumbnails', '/upload', '/calendar', '/videos', '/analytics', '/channel', '/research', '/ai-studio', '/tools', '/settings'];
   const isProtectedRoute = protectedRoutes.some(route => request.nextUrl.pathname.startsWith(route));
 
   if (isProtectedRoute && !user) {

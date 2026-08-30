@@ -54,24 +54,24 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        'fixed left-0 top-0 z-40 h-screen bg-card border-r border-border transition-all duration-300 ease-in-out',
+        'fixed left-0 top-0 z-40 hidden h-[100dvh] bg-foreground text-background shadow-xl transition-all duration-300 ease-in-out md:block',
         sidebarOpen ? 'w-64' : 'w-16'
       )}
     >
       <div className="flex h-full flex-col">
         {/* Logo */}
-        <div className="flex h-16 items-center justify-between px-4 border-b border-border">
+        <div className="flex h-16 items-center justify-between border-b border-background/10 px-4">
           <Link href="/dashboard" className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary shadow-sm">
               <Zap className="h-5 w-5 text-primary-foreground" />
             </div>
             {sidebarOpen && (
-              <span className="text-lg font-bold gradient-text">Smartyt</span>
+               <span className="font-display text-lg font-semibold">smartyt<span className="text-secondary">.</span></span>
             )}
           </Link>
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="rounded-md p-1 hover:bg-accent transition-colors"
+             className="rounded-md p-1 text-background/60 transition-colors hover:bg-background/10 hover:text-background"
           >
             {sidebarOpen ? (
               <ChevronLeft className="h-4 w-4" />
@@ -92,9 +92,9 @@ export function Sidebar() {
                     href={item.href}
                     className={cn(
                       'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
-                      isActive
-                        ? 'bg-primary/10 text-primary'
-                        : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+                       isActive
+                         ? 'bg-primary text-primary-foreground shadow-sm'
+                         : 'text-background/60 hover:bg-background/10 hover:text-background',
                       !sidebarOpen && 'justify-center px-2'
                     )}
                     title={!sidebarOpen ? item.name : undefined}
@@ -109,15 +109,15 @@ export function Sidebar() {
         </nav>
 
         {/* Bottom section */}
-        <div className="border-t border-border p-4">
+        <div className="border-t border-background/10 p-4">
           <div className={cn('flex items-center gap-3', !sidebarOpen && 'justify-center')}>
-            <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center">
-              <span className="text-xs font-bold text-primary">U</span>
+             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary">
+               <span className="text-xs font-bold text-secondary-foreground">C</span>
             </div>
             {sidebarOpen && (
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">Creator</p>
-                <p className="text-xs text-muted-foreground truncate">Free Plan</p>
+                 <p className="truncate text-sm font-medium">Creator</p>
+                 <p className="truncate text-xs text-background/50">Free plan</p>
               </div>
             )}
           </div>

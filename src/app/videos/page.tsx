@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
-import { Video, Plus, ExternalLink, BarChart3 } from "lucide-react";
+import { Video, Plus, RefreshCw } from "lucide-react";
 
 interface VideoDraft {
   id: string;
@@ -19,20 +19,22 @@ interface VideoDraft {
 export default function VideosPage() {
   const [drafts, setDrafts] = useState<VideoDraft[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [activeTab, setActiveTab] = useState("All");
 
   useEffect(() => {
     fetchDrafts();
   }, []);
 
   const fetchDrafts = async () => {
+    setError("");
     try {
       const response = await fetch("/api/drafts");
       const result = await response.json();
-      if (result.success) {
-        setDrafts(result.data.drafts);
-      }
+      if (!response.ok || !result.success) throw new Error(result.error?.message || "Failed to load drafts");
+      setDrafts(result.data.drafts);
     } catch (error) {
-      console.error("Failed to fetch drafts:", error);
+      setError(error instanceof Error ? error.message : "Failed to load drafts");
     } finally {
       setLoading(false);
     }
@@ -50,13 +52,16 @@ export default function VideosPage() {
         return "secondary";
     }
   };
+  const statusFilter: Record<string, string> = { Published: "published", Scheduled: "scheduled", Drafts: "draft", Failed: "failed" };
+  const filteredDrafts = drafts.filter((draft) => activeTab === "All" || draft.status === statusFilter[activeTab]);
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
         <div>
-          <h1 className="text-3xl font-bold">Video Manager</h1>
-          <p className="text-muted-foreground">Manage all your video content</p>
+          <p className="font-mono text-xs uppercase tracking-[.18em] text-primary">Your library</p>
+          <h1 className="mt-2 font-display text-4xl font-semibold">Video manager</h1>
+          <p className="mt-2 text-muted-foreground">Keep every upload moving toward publish.</p>
         </div>
         <Button asChild>
           <Link href="/create">
@@ -66,9 +71,9 @@ export default function VideosPage() {
         </Button>
       </div>
 
-      <div className="flex gap-2 border-b pb-2">
+      <div className="flex gap-1 overflow-x-auto border-b border-border pb-2">
         {["All", "Published", "Scheduled", "Drafts", "Failed"].map((tab) => (
-          <Button key={tab} variant="ghost" size="sm">
+          <Button key={tab} variant={activeTab === tab ? "secondary" : "ghost"} size="sm" onClick={() => setActiveTab(tab)}>
             {tab}
           </Button>
         ))}
@@ -80,9 +85,11 @@ export default function VideosPage() {
             <Skeleton key={i} className="h-48 w-full" />
           ))}
         </div>
-      ) : drafts.length > 0 ? (
+      ) : error ? (
+        <Card className="p-12 text-center"><RefreshCw className="mx-auto mb-4 h-10 w-10 text-primary" /><h3 className="font-display text-2xl">Could not load your library</h3><p className="mt-2 text-muted-foreground">{error}</p><Button className="mt-5" onClick={() => { setLoading(true); fetchDrafts(); }}>Try again</Button></Card>
+      ) : filteredDrafts.length > 0 ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {drafts.map((draft) => (
+          {filteredDrafts.map((draft) => (
             <Card key={draft.id} className="overflow-hidden">
               <div className="aspect-video bg-muted flex items-center justify-center">
                 <Video className="h-12 w-12 text-muted-foreground" />

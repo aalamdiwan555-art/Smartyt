@@ -18,20 +18,21 @@ interface Notification {
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     fetchNotifications();
   }, []);
 
   const fetchNotifications = async () => {
+    setError("");
     try {
       const response = await fetch("/api/notifications");
       const result = await response.json();
-      if (result.success) {
-        setNotifications(result.data.notifications);
-      }
+      if (!response.ok || !result.success) throw new Error(result.error?.message || "Failed to load notifications");
+      setNotifications(result.data.notifications);
     } catch (error) {
-      console.error("Failed to fetch notifications:", error);
+      setError(error instanceof Error ? error.message : "Failed to load notifications");
     } finally {
       setLoading(false);
     }
@@ -55,8 +56,9 @@ export default function NotificationsPage() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Notifications</h1>
-        <p className="text-muted-foreground">Stay updated with your content</p>
+        <p className="font-mono text-xs uppercase tracking-[.18em] text-primary">Inbox</p>
+        <h1 className="mt-2 font-display text-4xl font-semibold">Notifications</h1>
+        <p className="mt-2 text-muted-foreground">Useful nudges, nothing noisy.</p>
       </div>
 
       {loading ? (
@@ -65,6 +67,8 @@ export default function NotificationsPage() {
             <Skeleton key={i} className="h-16 w-full" />
           ))}
         </div>
+      ) : error ? (
+        <Card className="p-12 text-center"><Bell className="mx-auto mb-4 h-10 w-10 text-primary" /><h3 className="font-display text-2xl">Your inbox is out of reach</h3><p className="mt-2 text-muted-foreground">{error}</p><Button className="mt-5" onClick={() => { setLoading(true); fetchNotifications(); }}>Try again</Button></Card>
       ) : notifications.length > 0 ? (
         <div className="space-y-3">
           {notifications.map((notification) => (

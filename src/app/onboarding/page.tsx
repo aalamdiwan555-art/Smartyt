@@ -2,228 +2,56 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { ArrowLeft, ArrowRight, Check, CheckCircle2, CircleUserRound, Clapperboard, Target, X } from "lucide-react";
+import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import toast from "react-hot-toast";
-import { ArrowRight, ArrowLeft, User, Target, Video, CheckCircle } from "lucide-react";
 
 const steps = [
-  { id: "profile", title: "Your Profile", icon: User },
-  { id: "channel", title: "Channel Info", icon: Video },
-  { id: "goals", title: "Your Goals", icon: Target },
+  { id: "profile", title: "About you", icon: CircleUserRound, kicker: "First, your point of view" },
+  { id: "channel", title: "Your channel", icon: Clapperboard, kicker: "Then, who you make for" },
+  { id: "goals", title: "Your direction", icon: Target, kicker: "Finally, what good looks like" },
 ];
+const goalOptions = ["More views", "More subscribers", "Better SEO", "Better consistency", "Better CTR", "Better content ideas"];
 
 export default function OnboardingPage() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
-  const [profile, setProfile] = useState({
-    creatorName: "",
-    mainLanguage: "en",
-    targetAudience: "",
-    contentFormat: "both",
-    mainTopics: [] as string[],
-    goals: [] as string[],
-  });
+  const [profile, setProfile] = useState({ creatorName: "", mainLanguage: "en", targetAudience: "", contentFormat: "both", mainTopics: [] as string[], goals: [] as string[] });
   const [topicInput, setTopicInput] = useState("");
+  const [saving, setSaving] = useState(false);
 
-  const handleNext = () => {
-    if (currentStep < steps.length - 1) {
-      setCurrentStep(currentStep + 1);
-    } else {
-      finishOnboarding();
+  function addTopic() {
+    const topic = topicInput.trim();
+    if (topic && !profile.mainTopics.includes(topic)) setProfile((current) => ({ ...current, mainTopics: [...current.mainTopics, topic] }));
+    setTopicInput("");
+  }
+  function toggleGoal(goal: string) {
+    setProfile((current) => ({ ...current, goals: current.goals.includes(goal) ? current.goals.filter((item) => item !== goal) : [...current.goals, goal] }));
+  }
+  function next() {
+    if (currentStep < steps.length - 1) setCurrentStep((step) => step + 1);
+    else {
+      setSaving(true);
+      toast.success("Your Smartyt workspace is ready.");
+      router.push("/dashboard");
     }
-  };
+  }
 
-  const handleBack = () => {
-    if (currentStep > 0) {
-      setCurrentStep(currentStep - 1);
-    }
-  };
-
-  const finishOnboarding = () => {
-    toast.success("Welcome to Smartyt!");
-    router.push("/dashboard");
-  };
-
-  const addTopic = () => {
-    if (topicInput.trim() && !profile.mainTopics.includes(topicInput.trim())) {
-      setProfile({ ...profile, mainTopics: [...profile.mainTopics, topicInput.trim()] });
-      setTopicInput("");
-    }
-  };
-
-  const toggleGoal = (goal: string) => {
-    const newGoals = profile.goals.includes(goal)
-      ? profile.goals.filter((g) => g !== goal)
-      : [...profile.goals, goal];
-    setProfile({ ...profile, goals: newGoals });
-  };
-
-  const progress = ((currentStep + 1) / steps.length) * 100;
-
+  const step = steps[currentStep];
   return (
-    <div className="min-h-screen flex items-center justify-center bg-muted/50 p-4">
-      <Card className="w-full max-w-lg">
-        <CardHeader className="text-center">
-          <div className="flex justify-center mb-4">
-            <div className="h-12 w-12 rounded-xl bg-primary flex items-center justify-center">
-              <CheckCircle className="h-7 w-7 text-primary-foreground" />
-            </div>
-          </div>
-          <CardTitle className="text-2xl">Welcome to Smartyt</CardTitle>
-          <p className="text-muted-foreground">Let us personalize your experience</p>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <Progress value={progress} />
-
-          <div className="flex justify-between text-sm">
-            {steps.map((step, index) => (
-              <div
-                key={step.id}
-                className={`flex items-center gap-1 ${
-                  index <= currentStep ? "text-primary" : "text-muted-foreground"
-                }`}
-              >
-                <step.icon className="h-4 w-4" />
-                <span className="hidden sm:inline">{step.title}</span>
-              </div>
-            ))}
-          </div>
-
-          {currentStep === 0 && (
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium">Creator Name</label>
-                <Input
-                  value={profile.creatorName}
-                  onChange={(e) => setProfile({ ...profile, creatorName: e.target.value })}
-                  placeholder="How should we call you?"
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Main Language</label>
-                <select
-                  value={profile.mainLanguage}
-                  onChange={(e) => setProfile({ ...profile, mainLanguage: e.target.value })}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm mt-1"
-                >
-                  <option value="en">English</option>
-                  <option value="hi">Hindi</option>
-                  <option value="es">Spanish</option>
-                  <option value="fr">French</option>
-                  <option value="de">German</option>
-                </select>
-              </div>
-            </div>
-          )}
-
-          {currentStep === 1 && (
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium">Target Audience</label>
-                <Input
-                  value={profile.targetAudience}
-                  onChange={(e) => setProfile({ ...profile, targetAudience: e.target.value })}
-                  placeholder="e.g., Tech enthusiasts, beginners, etc."
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Content Format</label>
-                <div className="flex gap-2 mt-1">
-                  {["long_form", "shorts", "both"].map((format) => (
-                    <Button
-                      key={format}
-                      variant={profile.contentFormat === format ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setProfile({ ...profile, contentFormat: format })}
-                    >
-                      {format === "long_form" ? "Long Form" : format === "shorts" ? "Shorts" : "Both"}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label className="text-sm font-medium">Main Topics</label>
-                <div className="flex gap-2 mt-1">
-                  <Input
-                    value={topicInput}
-                    onChange={(e) => setTopicInput(e.target.value)}
-                    placeholder="Add a topic"
-                    onKeyDown={(e) => e.key === "Enter" && addTopic()}
-                  />
-                  <Button onClick={addTopic} size="sm">
-                    Add
-                  </Button>
-                </div>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {profile.mainTopics.map((topic) => (
-                    <span
-                      key={topic}
-                      className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary"
-                    >
-                      {topic}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {currentStep === 2 && (
-            <div className="space-y-4">
-              <label className="text-sm font-medium">Your Goals</label>
-              <div className="space-y-2">
-                {[
-                  "More views",
-                  "More subscribers",
-                  "Better SEO",
-                  "Better consistency",
-                  "Better CTR",
-                  "Better content ideas",
-                ].map((goal) => (
-                  <div
-                    key={goal}
-                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                      profile.goals.includes(goal)
-                        ? "border-primary bg-primary/5"
-                        : "border-muted hover:bg-muted/50"
-                    }`}
-                    onClick={() => toggleGoal(goal)}
-                  >
-                    <div
-                      className={`h-5 w-5 rounded border flex items-center justify-center ${
-                        profile.goals.includes(goal)
-                          ? "bg-primary border-primary"
-                          : "border-muted-foreground"
-                      }`}
-                    >
-                      {profile.goals.includes(goal) && (
-                        <CheckCircle className="h-3 w-3 text-primary-foreground" />
-                      )}
-                    </div>
-                    <span className="text-sm">{goal}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="flex justify-between pt-4">
-            <Button variant="outline" onClick={handleBack} disabled={currentStep === 0}>
-              <ArrowLeft className="h-4 w-4 mr-1" />
-              Back
-            </Button>
-            <Button onClick={handleNext}>
-              {currentStep === steps.length - 1 ? "Get Started" : "Next"}
-              <ArrowRight className="h-4 w-4 ml-1" />
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="grain min-h-[100dvh] bg-background px-5 py-6 md:px-10 md:py-10">
+      <header className="mx-auto flex max-w-6xl items-center justify-between"><div className="flex items-center gap-2"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground"><CheckCircle2 className="h-5 w-5" /></span><span className="font-display text-xl font-semibold">smartyt<span className="text-primary">.</span></span></div><span className="font-mono text-[10px] uppercase tracking-[.18em] text-muted-foreground">Setup / {String(currentStep + 1).padStart(2, "0")} of 03</span></header>
+      <main className="mx-auto grid max-w-6xl gap-10 py-12 md:grid-cols-[.72fr_1.28fr] md:items-center md:py-20">
+        <div className="max-w-sm"><p className="font-mono text-xs uppercase tracking-[.18em] text-primary">Let&apos;s make it yours</p><h1 className="mt-4 font-display text-5xl leading-[1.02] md:text-6xl">{step.kicker}.</h1><p className="mt-5 leading-7 text-muted-foreground">A few useful details help Smartyt make better suggestions. You can always change these later.</p><div className="mt-10 flex gap-2">{steps.map((item, index) => <div key={item.id} className={`h-1.5 flex-1 rounded-full ${index <= currentStep ? "bg-primary" : "bg-border"}`} />)}</div></div>
+        <section className="rounded-[2rem] border border-border bg-card p-6 shadow-[0_20px_70px_hsl(var(--foreground)/.07)] md:p-10">
+          <div className="mb-8 flex items-center justify-between"><div><p className="font-mono text-xs uppercase tracking-[.16em] text-muted-foreground">Step {currentStep + 1}</p><h2 className="mt-2 font-display text-3xl">{step.title}</h2></div><div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-secondary"><step.icon className="h-5 w-5" /></div></div>
+          {currentStep === 0 && <div className="space-y-6"><label className="block text-sm font-semibold">Creator name<Input value={profile.creatorName} onChange={(e) => setProfile({ ...profile, creatorName: e.target.value })} placeholder="How should we call you?" className="mt-2" /></label><label className="block text-sm font-semibold">Main language<select value={profile.mainLanguage} onChange={(e) => setProfile({ ...profile, mainLanguage: e.target.value })} className="mt-2 h-10 w-full rounded-lg border border-input bg-card px-3 text-sm outline-none focus:border-primary"><option value="en">English</option><option value="hi">Hindi</option><option value="es">Spanish</option><option value="fr">French</option><option value="de">German</option></select></label></div>}
+          {currentStep === 1 && <div className="space-y-6"><label className="block text-sm font-semibold">Who are you making videos for?<Input value={profile.targetAudience} onChange={(e) => setProfile({ ...profile, targetAudience: e.target.value })} placeholder="Tech beginners, busy parents, indie founders..." className="mt-2" /></label><div><p className="text-sm font-semibold">What do you make?</p><div className="mt-2 grid grid-cols-3 gap-2">{[["long_form", "Long form"], ["shorts", "Shorts"], ["both", "A mix"]].map(([value, label]) => <button type="button" key={value} onClick={() => setProfile({ ...profile, contentFormat: value })} className={`rounded-xl border p-3 text-left text-sm font-semibold transition-smooth ${profile.contentFormat === value ? "border-primary bg-primary/8 text-primary" : "border-border hover:border-primary/40"}`}>{label}<span className="mt-1 block text-xs font-normal text-muted-foreground">{value === "shorts" ? "Quick hits" : value === "long_form" ? "Deep dives" : "Best of both"}</span></button>)}</div></div><div><p className="text-sm font-semibold">Your main topics</p><div className="mt-2 flex gap-2"><Input value={topicInput} onChange={(e) => setTopicInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTopic(); } }} placeholder="Add a topic" /><Button type="button" variant="secondary" onClick={addTopic}>Add</Button></div><div className="mt-3 flex flex-wrap gap-2">{profile.mainTopics.map((topic) => <span key={topic} className="inline-flex items-center gap-1 rounded-full bg-secondary px-3 py-1.5 text-xs font-semibold">{topic}<button type="button" onClick={() => setProfile((current) => ({ ...current, mainTopics: current.mainTopics.filter((item) => item !== topic) }))} aria-label={`Remove ${topic}`}><X className="h-3 w-3" /></button></span>)}</div></div></div>}
+          {currentStep === 2 && <div><p className="text-sm font-semibold">Pick the outcomes that matter right now.</p><div className="mt-4 grid gap-2 sm:grid-cols-2">{goalOptions.map((goal) => { const selected = profile.goals.includes(goal); return <button type="button" key={goal} onClick={() => toggleGoal(goal)} className={`flex items-center gap-3 rounded-xl border p-3.5 text-left text-sm font-medium transition-smooth ${selected ? "border-primary bg-primary/8 text-primary" : "border-border hover:border-primary/40"}`}><span className={`flex h-5 w-5 items-center justify-center rounded-full border ${selected ? "border-primary bg-primary text-primary-foreground" : "border-muted-foreground/40"}`}>{selected && <Check className="h-3 w-3" />}</span>{goal}</button>; })}</div></div>}
+          <div className="mt-10 flex items-center justify-between border-t border-border pt-5"><Button variant="ghost" onClick={() => setCurrentStep((value) => Math.max(0, value - 1))} disabled={currentStep === 0}><ArrowLeft className="h-4 w-4" /> Back</Button><Button onClick={next} disabled={saving}>{currentStep === steps.length - 1 ? "Enter Smartyt" : "Continue"}<ArrowRight className="h-4 w-4" /></Button></div>
+        </section>
+      </main>
     </div>
   );
 }

@@ -155,7 +155,7 @@ export interface ThumbnailProject {
   id: string;
   draftId?: string;
   userId: string;
-  canvasJson?: Record<string, any>;
+  canvasJson?: unknown;
   exportedImageUrl?: string;
   updatedAt: string;
 }

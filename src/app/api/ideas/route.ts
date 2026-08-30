@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/supabase';
 import { prisma } from '@/lib/db/prisma';
+import { handleApiError } from '@/lib/api/errors';
+import { ideaInputSchema } from '@/lib/validation';
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,11 +15,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ success: true, data: { ideas } });
   } catch (error) {
-    console.error('Ideas error:', error);
-    return NextResponse.json(
-      { success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch ideas' } },
-      { status: 500 }
-    );
+    return handleApiError(error, 'Failed to fetch ideas');
   }
 }
 
@@ -25,13 +23,26 @@ export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth();
 
-    const body = await request.json();
-    const { titleConcept, contentAngle, hook, targetAudience, suggestedKeywords, thumbnailConcept, projectId } = body;
+    const parsed = ideaInputSchema.safeParse(await request.json());
+    if (!parsed.success) {
+      return NextResponse.json(
+        { success: false, error: { code: 'INVALID_INPUT', message: 'Invalid idea details' } },
+        { status: 400 },
+      );
+    }
+    const { titleConcept, contentAngle, hook, targetAudience, suggestedKeywords, thumbnailConcept, projectId } = parsed.data;
+    const project = await prisma.project.findFirst({ where: { id: projectId, userId: user.id } });
+    if (!project) {
+      return NextResponse.json(
+        { success: false, error: { code: 'NOT_FOUND', message: 'Project not found' } },
+        { status: 404 },
+      );
+    }
 
     const idea = await prisma.idea.create({
       data: {
         userId: user.id,
-        projectId: projectId || null,
+        projectId,
         titleConcept,
         contentAngle,
         hook,
@@ -44,10 +55,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, data: idea });
   } catch (error) {
-    console.error('Idea create error:', error);
-    return NextResponse.json(
-      { success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to create idea' } },
-      { status: 500 }
-    );
+    return handleApiError(error, 'Failed to create idea');
   }
 }

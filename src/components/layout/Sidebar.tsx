@@ -9,19 +9,7 @@ import {
   LayoutDashboard,
   PlusCircle,
   Lightbulb,
-  Search,
-  FileText,
-  Type,
-  AlignLeft,
-  Image,
-  Upload,
-  Calendar,
   Video,
-  BarChart3,
-  Tv,
-  FlaskConical,
-  Wand2,
-  Settings,
   ChevronLeft,
   ChevronRight,
   Zap,
@@ -30,21 +18,8 @@ import {
 const navItems = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Create', href: '/create', icon: PlusCircle },
-  { name: 'Ideas', href: '/ideas', icon: Lightbulb },
-  { name: 'SEO', href: '/seo', icon: Search },
-  { name: 'Keywords', href: '/keywords', icon: FileText },
-  { name: 'Titles', href: '/titles', icon: Type },
-  { name: 'Descriptions', href: '/descriptions', icon: AlignLeft },
-  { name: 'Thumbnails', href: '/thumbnails', icon: Image },
-  { name: 'Upload', href: '/upload', icon: Upload },
-  { name: 'Calendar', href: '/calendar', icon: Calendar },
+  { name: 'Ideas', href: '/create', icon: Lightbulb },
   { name: 'Videos', href: '/videos', icon: Video },
-  { name: 'Analytics', href: '/analytics', icon: BarChart3 },
-  { name: 'Channel', href: '/channel', icon: Tv },
-  { name: 'Research', href: '/research', icon: FlaskConical },
-  { name: 'AI Studio', href: '/ai-studio', icon: Wand2 },
-  { name: 'Tools', href: '/tools', icon: Zap },
-  { name: 'Settings', href: '/settings', icon: Settings },
 ];
 
 export function Sidebar() {
@@ -71,6 +46,7 @@ export function Sidebar() {
           </Link>
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
+           aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
              className="rounded-md p-1 text-background/60 transition-colors hover:bg-background/10 hover:text-background"
           >
             {sidebarOpen ? (

@@ -1,0 +1,74 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_url:
+        description: 'HTTPS URL of the deployed Smartyt app'
+        required: true
+        type: string
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    env:
+      CAPACITOR_APP_URL: ${{ inputs.app_url || vars.SMARTYT_APP_URL }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Validate app URL
+        run: |
+          if [[ -z "$CAPACITOR_APP_URL" || "$CAPACITOR_APP_URL" != https://* ]]; then
+            echo "Provide an HTTPS app URL as the workflow input or SMARTYT_APP_URL repository variable."
+            exit 1
+          fi
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: pnpm
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Android project
+        run: |
+          pnpm exec cap add android
+          pnpm exec cap sync android
+
+      - name: Build debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: smartyt-android-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+      - name: Attach APK to tagged release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: android/app/build/outputs/apk/debug/app-debug.apk

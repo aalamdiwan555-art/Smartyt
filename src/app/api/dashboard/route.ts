@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/supabase';
 import { prisma } from '@/lib/db/prisma';
+import { handleApiError } from '@/lib/api/errors';
+import { toJsonSafe } from '@/lib/api/response';
 
 export async function GET(request: NextRequest) {
   try {
@@ -22,7 +24,7 @@ export async function GET(request: NextRequest) {
       }),
       prisma.upload.findMany({
         where: { userId: user.id },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { startedAt: 'desc' },
         take: 5,
         include: { draft: true },
       }),
@@ -35,7 +37,7 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
-    return NextResponse.json({
+    return NextResponse.json(toJsonSafe({
       success: true,
       data: {
         channels,
@@ -45,12 +47,8 @@ export async function GET(request: NextRequest) {
         usage,
         subscription,
       },
-    });
+    }));
   } catch (error) {
-    console.error('Dashboard error:', error);
-    return NextResponse.json(
-      { success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch dashboard data' } },
-      { status: 500 }
-    );
+    return handleApiError(error, 'Failed to fetch dashboard data');
   }
 }
